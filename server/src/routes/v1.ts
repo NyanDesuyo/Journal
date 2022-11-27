@@ -1,9 +1,11 @@
 import { Router } from "express";
 
-import userRoutes from "../controller/v1/user";
-
 const router = Router();
 
-router.use("/user", userRoutes);
+import authRoutes from "../controller/v1/Auth";
+router.use("/auth", authRoutes);
+
+import PostItRoutes from "../controller/v1/PostIt";
+router.use("/postit", PostItRoutes);
 
 export default router;
