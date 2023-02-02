@@ -11,7 +11,7 @@ export interface ResponseRestAPI {
 }
 export interface UserToken extends JwtPayload {
   id: string;
-  tokenversion: string;
+  tokenversion: number;
 }
 
 export interface GraphQLContext {
