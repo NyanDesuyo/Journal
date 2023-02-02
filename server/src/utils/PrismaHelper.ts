@@ -7,11 +7,9 @@ export function prismaSkipPage(pointer: number, pageSize?: number): number {
 }
 
 export function prismaTakePage(pageSize = 0): number {
-  return pageSize >= 10 ? DEFAULT_TAKE_VALUE : pageSize;
+  return pageSize >= DEFAULT_TAKE_VALUE ? DEFAULT_TAKE_VALUE : pageSize;
 }
 
 export function prismaTotalPage(counter: number, pageSize: number): number {
-  return counter % pageSize === 0
-    ? counter / pageSize
-    : Math.trunc(counter / pageSize) + 1;
+  return Math.ceil(counter / pageSize);
 }
