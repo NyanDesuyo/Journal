@@ -1,11 +1,16 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { checkSchema, validationResult } from "express-validator";
+import { checkSchema, validationResult, cookie } from "express-validator";
 import { genSalt, hash, compare } from "bcryptjs";
 
 import { prismaClient } from "../../config";
 
 import { ResponseRestAPI, UserToken } from "../../interface";
-import { accessToken, refreshToken, setCookie } from "../../function";
+import {
+  accessToken,
+  refreshToken,
+  setCookie,
+  payloadToken,
+} from "../../function";
 import { RegisterUserSchema, LoginUserSchema } from "../../schema";
 
 const router = Router();
@@ -165,6 +170,159 @@ router.post(
         payload: {
           message: "Check your POST Request",
           info: validResult.array(),
+        },
+      };
+    }
+
+    return res.status(responseRestAPI.statuscode).json(responseRestAPI.payload);
+  }
+);
+
+router.post(
+  "/refresh-token",
+  cookie("cukkie").not().isEmpty(),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { cukkie } = req.cookies;
+
+    const err = validationResult(req);
+
+    if (err.isEmpty()) {
+      try {
+        if (!cukkie) {
+          responseRestAPI = {
+            statuscode: 500,
+            payload: {
+              message: "No Cookie",
+              data: {
+                accessTokenData: null,
+              },
+            },
+          };
+        }
+
+        let { username, tokenversion }: UserToken = payloadToken(cukkie);
+
+        const getUserData = await prismaClient.user.findFirst({
+          where: {
+            username,
+          },
+          select: {
+            id: true,
+            password: true,
+            tokenversion: true,
+          },
+        });
+
+        if (getUserData !== null && tokenversion === getUserData.tokenversion) {
+          const accessTokenData = accessToken({
+            id: getUserData.id,
+            tokenversion: getUserData.tokenversion,
+          });
+
+          const refreshTokenData = refreshToken({
+            id: getUserData.id,
+            tokenversion: getUserData.tokenversion,
+          });
+
+          setCookie(res, refreshTokenData);
+
+          responseRestAPI = {
+            statuscode: 200,
+            payload: {
+              message: "Refresh token",
+              data: {
+                accessTokenData,
+              },
+            },
+          };
+        } else {
+          responseRestAPI = {
+            statuscode: 500,
+            payload: {
+              message: "Wrong Credential",
+              data: {
+                accessTokenData: null,
+              },
+            },
+          };
+        }
+      } catch (error) {
+        console.log(error);
+
+        responseRestAPI = {
+          statuscode: 500,
+          payload: {
+            message: "Something Went Wrong",
+            data: error,
+          },
+        };
+      }
+    } else {
+      responseRestAPI = {
+        statuscode: 400,
+        payload: {
+          message: "Check Your POST Request",
+          info: err.array(),
+        },
+      };
+    }
+
+    return res.status(responseRestAPI.statuscode).json(responseRestAPI.payload);
+  }
+);
+
+router.post(
+  "/revoke-refresh-token",
+  cookie("").not().isEmpty(),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { cukkie } = req.cookies;
+
+    const err = validationResult(req);
+
+    if (err.isEmpty()) {
+      try {
+        let { id }: UserToken = payloadToken(cukkie);
+
+        const updateUserData = await prismaClient.user.update({
+          where: {
+            id,
+          },
+          data: {
+            tokenversion: {
+              increment: 1,
+            },
+          },
+          select: {
+            username: true,
+          },
+        });
+
+        responseRestAPI = {
+          statuscode: 200,
+          payload: {
+            message: "Revoke token",
+            data: {
+              updateUserData,
+            },
+          },
+        };
+      } catch (error) {
+        console.log(error);
+
+        responseRestAPI = {
+          statuscode: 500,
+          payload: {
+            message: "Something Went Wrong",
+            data: error,
+          },
+        };
+      }
+    } else {
+      responseRestAPI = {
+        statuscode: 400,
+        payload: {
+          message: "Check Your POST Request",
+          info: err.array(),
         },
       };
     }
